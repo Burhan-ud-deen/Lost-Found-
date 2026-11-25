@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Log in — Lost &amp; Found Citywide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="login">
+
+  <main id="main">
+    <div class="form-card narrow">
+      <h1 class="page-title">Your account</h1>
+      <div class="tabs" role="tablist" aria-label="Account">
+        <button type="button" role="tab" id="tab-login" aria-controls="panel-login" aria-selected="true" data-tab="panel-login">Log in</button>
+        <button type="button" role="tab" id="tab-register" aria-controls="panel-register" aria-selected="false" data-tab="panel-register">Sign up</button>
+      </div>
+
+      <div class="alert alert-info" role="note">Prototype demo: any credentials work. No real account is created — data stays in your browser.</div>
+
+      <div class="tabpanel" id="panel-login" role="tabpanel" aria-labelledby="tab-login">
+        <h2 class="mt-0">Log in</h2>
+        <p class="page-sub">Continue to report, claim, and message.</p>
+        <form id="login-form" novalidate>
+          <div class="field">
+            <label for="login-email">Email</label>
+            <input id="login-email" name="email" type="email" autocomplete="email" required>
+            <span class="error">Enter a valid email address.</span>
+          </div>
+          <div class="field">
+            <label for="login-password">Password</label>
+            <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+            <span class="error">Password must be at least 4 characters.</span>
+          </div>
+          <button class="btn btn-primary btn-block" type="submit">Log in</button>
+        </form>
+        <p class="text-center text-muted" style="margin-top:16px;font-size:.875rem">
+          New here? <a href="login.html?mode=register">Create an account</a>
+        </p>
+      </div>
+
+      <div class="tabpanel hidden" id="panel-register" role="tabpanel" aria-labelledby="tab-register">
+        <h2 class="mt-0">Create account</h2>
+        <p class="page-sub">Free for everyone in the city.</p>
+        <form id="register-form" novalidate>
+          <div class="field">
+            <label for="reg-name">Full name</label>
+            <input id="reg-name" name="name" type="text" autocomplete="name" required>
+            <span class="error">Enter your name.</span>
+          </div>
+          <div class="field">
+            <label for="reg-email">Email</label>
+            <input id="reg-email" name="email" type="email" autocomplete="email" required>
+            <span class="error">Enter a valid email address.</span>
+          </div>
+          <div class="field">
+            <label for="reg-password">Password</label>
+            <input id="reg-password" name="password" type="password" autocomplete="new-password" required>
+            <span class="error">Password must be at least 4 characters.</span>
+          </div>
+          <div class="field">
+            <label for="reg-city">City</label>
+            <select id="reg-city" name="city" required>
+              <option value="">Select your city</option>
+              <option>Karachi</option>
+              <option>Lahore</option>
+              <option>Islamabad</option>
+              <option>Rawalpindi</option>
+              <option>Peshawar</option>
+              <option>Quetta</option>
+              <option>Other</option>
+            </select>
+            <span class="error">Choose your city.</span>
+          </div>
+          <button class="btn btn-primary btn-block" type="submit">Sign up</button>
+        </form>
+        <p class="text-center text-muted" style="margin-top:16px;font-size:.875rem">
+          Already registered? <a href="login.html">Log in</a>
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    (function () {
+      var emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      function setInvalid(input, bad) {
+        var field = input.closest('.field');
+        if (!field) return;
+        field.classList.toggle('invalid', bad);
+      }
+
+      function done() {
+        var next = sessionStorage.getItem('lf_next');
+        if (next) {
+          sessionStorage.removeItem('lf_next');
+          App.go(next);
+        } else {
+          App.go('index.html');
+        }
+      }
+
+      function collect(form) {
+        var data = {};
+        Array.prototype.forEach.call(form.elements, function (el) {
+          if (el.name) data[el.name] = (el.value || '').trim();
+        });
+        return data;
+      }
+
+      var loginForm = document.getElementById('login-form');
+      loginForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var email = document.getElementById('login-email');
+        var pass = document.getElementById('login-password');
+        var bad = false;
+        if (!emailRe.test(email.value.trim())) { setInvalid(email, true); bad = true; } else { setInvalid(email, false); }
+        if (pass.value.length < 4) { setInvalid(pass, true); bad = true; } else { setInvalid(pass, false); }
+        if (bad) return;
+        LF.setUser({ name: email.value.trim().split('@')[0], email: email.value.trim(), city: 'Karachi' });
+        done();
+      });
+
+      var regForm = document.getElementById('register-form');
+      regForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var d = collect(regForm);
+        var bad = false;
+        if (!d.name) { setInvalid(regForm.elements.name, true); bad = true; } else { setInvalid(regForm.elements.name, false); }
+        if (!emailRe.test(d.email)) { setInvalid(regForm.elements.email, true); bad = true; } else { setInvalid(regForm.elements.email, false); }
+        if ((d.password || '').length < 4) { setInvalid(regForm.elements.password, true); bad = true; } else { setInvalid(regForm.elements.password, false); }
+        if (!d.city) { setInvalid(regForm.elements.city, true); bad = true; } else { setInvalid(regForm.elements.city, false); }
+        if (bad) return;
+        LF.setUser({ name: d.name, email: d.email, city: d.city });
+        done();
+      });
+
+      if (App.param('mode') === 'register') {
+        document.getElementById('tab-login').setAttribute('aria-selected', 'false');
+        document.getElementById('tab-register').setAttribute('aria-selected', 'true');
+        document.getElementById('panel-login').classList.add('hidden');
+        document.getElementById('panel-register').classList.remove('hidden');
+      }
+    })();
+  </script>
+</body>
+</html>

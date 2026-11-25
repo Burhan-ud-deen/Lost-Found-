@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Matches — Lost &amp; Found Citywide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="search">
+
+  <main id="main">
+    <div id="match-root" aria-live="polite">
+      <div class="empty"><div class="ico" aria-hidden="true">…</div><p>Loading matches…</p></div>
+    </div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    (function () {
+      var root = document.getElementById('match-root');
+      var aId = App.param('a');
+      var bId = App.param('b');
+      var a = aId ? LF.getItem(aId) : null;
+      var b = bId ? LF.getItem(bId) : null;
+
+      function enc(s) { return encodeURIComponent(s); }
+
+      if (!a) {
+        root.innerHTML = '<div class="empty">' +
+          '<div class="ico" aria-hidden="true">\u{1F50D}</div>' +
+          '<p>No report selected.</p>' +
+          '<p><a href="search.html">Back to search</a></p></div>';
+        return;
+      }
+
+      if (!b) { renderCandidates(a); return; }
+
+      renderCompare(a, b);
+
+      /* ---------- candidate list ---------- */
+      function renderCandidates(item) {
+        document.title = 'Matches for ' + item.name + ' — Lost & Found Citywide';
+        var matches = App.findMatches(item);
+
+        var cards;
+        if (matches.length) {
+          cards = matches.map(function (m) {
+            var tone = m.score >= 75 ? 'badge-verified' : m.score >= 50 ? 'badge-verification' : 'badge-pending';
+            return '<article class="card"><div class="card-body">' +
+              '<div class="flex" style="justify-content:space-between">' +
+                '<span class="badge ' + tone + '">' + m.score + '% match</span>' +
+                '<span class="badge badge-id">' + App.esc(m.item.id) + '</span>' +
+              '</div>' +
+              '<div class="item-photo ' + (m.item.type === 'found' ? 'found' : '') + '" role="img" aria-label="' + App.esc(m.item.name) + '" style="height:90px;font-size:2rem;margin:12px 0">' + (m.item.emoji || '\u{1F50D}') + '</div>' +
+              '<h3>' + App.esc(m.item.name) + '</h3>' +
+              '<p>' + App.esc(m.item.area) + ', ' + App.esc(m.item.city) + ' · ' + App.fmtDate(m.item.date) + '</p>' +
+              '<div class="flex" style="margin-top:12px">' +
+                '<a class="btn btn-outline btn-sm" href="item.html?id=' + enc(m.item.id) + '">View</a>' +
+                '<a class="btn btn-primary btn-sm" href="matches.html?a=' + enc(item.id) + '&b=' + enc(m.item.id) + '">Compare</a>' +
+              '</div>' +
+            '</div></article>';
+          }).join('');
+        } else {
+          cards = '<div class="empty" style="grid-column:1/-1"><div class="ico" aria-hidden="true">\u{1F914}</div>' +
+            '<p>No possible matches yet. The system keeps checking as new reports arrive.</p></div>';
+        }
+
+        root.innerHTML =
+          '<p class="mb-16"><a href="item.html?id=' + enc(item.id) + '">&larr; Back to item</a></p>' +
+          '<h1 class="page-title">Matches for ' + App.esc(item.name) + '</h1>' +
+          '<p class="page-sub">Possible counterparts for report <span class="badge badge-id">' + App.esc(item.id) + '</span>. A higher percentage means a stronger overlap of fields and keywords.</p>' +
+          '<section class="grid" aria-label="Possible matches">' + cards + '</section>';
+      }
+
+      /* ---------- side-by-side comparison ---------- */
+      function sideHtml(item) {
+        return '<div class="match-side">' +
+          '<h3>' + App.typeBadge(item.type) + ' <span class="badge badge-id">' + App.esc(item.id) + '</span></h3>' +
+          '<div class="item-photo ' + (item.type === 'found' ? 'found' : '') + '" role="img" aria-label="' + App.esc(item.name) + '" style="height:110px;font-size:2.4rem">' + (item.emoji || '\u{1F50D}') + '</div>' +
+          '<h3 style="margin-top:12px">' + App.esc(item.name) + '</h3>' +
+          '<p class="text-muted" style="font-size:.875rem">' + App.esc(item.description) + '</p>' +
+          '<div class="meta">' +
+            '<span>\u{1F4CD} ' + App.esc(item.area) + ', ' + App.esc(item.city) + '</span>' +
+            '<span>\u{1F4C5} ' + App.fmtDate(item.date) + '</span>' +
+          '</div>' +
+        '</div>';
+      }
+
+      function renderCompare(first, second) {
+        document.title = 'Compare ' + first.id + ' and ' + second.id + ' — Lost & Found Citywide';
+        var score = App.scoreMatch(first, second);
+        var tone = score >= 75 ? 'badge-verified' : score >= 50 ? 'badge-verification' : 'badge-pending';
+        var color = score >= 75 ? 'var(--green)' : score >= 50 ? 'var(--blue)' : 'var(--amber)';
+        var label = score >= 75 ? 'Strong match' : score >= 50 ? 'Moderate match' : 'Weak match';
+        var foundItem = (second.type === 'found') ? second : (first.type === 'found' ? first : second);
+
+        var fields = [
+          ['Name', first.name, second.name],
+          ['Category', first.category, second.category],
+          ['Color', first.color, second.color],
+          ['Brand', first.brand, second.brand],
+          ['City', first.city, second.city],
+          ['Area', first.area, second.area],
+          ['Date', first.date, second.date]
+        ];
+
+        var rows = fields.map(function (f) {
+          function cell(v, other) {
+            var eq = v && String(v).toLowerCase() === String(other || '').toLowerCase();
+            return '<td class="' + (eq ? 'match' : 'miss') + '">' + App.esc(v || '—') + '</td>';
+          }
+          return '<tr><th scope="row">' + f[0] + '</th>' + cell(f[1], f[2]) + cell(f[2], f[1]) + '</tr>';
+        }).join('');
+
+        root.innerHTML =
+          '<p class="mb-16"><a href="matches.html?a=' + enc(first.id) + '">&larr; Back to matches</a></p>' +
+          '<h1 class="page-title">Compare reports</h1>' +
+          '<p class="page-sub">Comparing <span class="badge badge-id">' + App.esc(first.id) + '</span> and <span class="badge badge-id">' + App.esc(second.id) + '</span>. Treat the score as a hint, not proof.</p>' +
+
+          '<div class="match-score">' +
+            '<div class="big" style="color:' + color + '">' + score + '%</div>' +
+            '<p class="text-muted" style="margin-top:4px">Possible match confidence</p>' +
+            '<span class="badge ' + tone + '">' + label + '</span>' +
+          '</div>' +
+
+          '<div class="match-pair">' +
+            sideHtml(first) +
+            '<div class="match-vs">VS</div>' +
+            sideHtml(second) +
+          '</div>' +
+
+          '<div class="section-head"><h2>Field comparison</h2></div>' +
+          '<div class="table-wrap">' +
+            '<table class="compare-table">' +
+              '<thead><tr><th scope="col">Field</th><th scope="col">Item A</th><th scope="col">Item B</th></tr></thead>' +
+              '<tbody>' + rows + '</tbody>' +
+            '</table>' +
+          '</div>' +
+
+          '<div class="flex" style="margin-top:20px">' +
+            '<a class="btn btn-primary" href="verify.html?id=' + enc(foundItem.id) + '">Start verification</a>' +
+            '<a class="btn btn-success" href="messages.html">Message other party</a>' +
+            '<a class="btn btn-outline" href="item.html?id=' + enc(first.id) + '">View item A</a>' +
+            '<a class="btn btn-outline" href="item.html?id=' + enc(second.id) + '">View item B</a>' +
+          '</div>';
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Found Items — Lost &amp; Found Citywide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="found">
+
+  <main id="main">
+    <div class="flex flex-between" style="justify-content:space-between">
+      <div>
+        <h1 class="page-title">Found items</h1>
+        <p class="page-sub">Hand over found items responsibly. Owners verify ownership privately before you hand anything over.</p>
+      </div>
+      <a class="btn btn-success" href="report-found.html">I found something</a>
+    </div>
+
+    <div class="alert alert-warn" role="note">Finders: never reveal highly specific private details publicly — they protect the real owner from false claims.</div>
+
+    <div id="browse-note" class="hidden"></div>
+
+    <div class="flex mb-16" id="chip-row" aria-label="Quick filters">
+      <span class="badge badge-found">Found</span>
+      <span class="text-muted" style="font-size:.85rem" id="count-line" role="status" aria-live="polite"></span>
+    </div>
+
+    <section class="grid" id="found-grid" aria-label="Found item reports" aria-live="polite"></section>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    (function () {
+      var user = LF.getUser();
+      if (!user) {
+        var note = document.getElementById('browse-note');
+        note.className = 'alert alert-info';
+        note.innerHTML = 'Browsing works without an account. <a href="login.html">Log in</a> or <a href="login.html?mode=register">sign up</a> to report, claim, or message.';
+      }
+
+      var items = LF.getItems().filter(function (it) { return it.type === 'found'; });
+      document.getElementById('count-line').textContent = items.length + (items.length === 1 ? ' open report' : ' open reports');
+      App.renderGrid(document.getElementById('found-grid'), items, 'No found items reported yet.');
+    })();
+  </script>
+</body>
+</html>

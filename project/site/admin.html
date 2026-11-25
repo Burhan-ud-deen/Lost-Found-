@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Admin console for reviewing reports, claims and complaints on Lost and Found Citywide.">
+  <title>Admin — Lost &amp; Found Citywide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="admin">
+
+  <main id="main">
+    <h1 class="page-title">Admin console</h1>
+    <p class="page-sub">Review reports, verify claims, and handle complaints flagged by users.</p>
+
+    <div class="alert alert-info">
+      <strong>Admin tools.</strong> Use this console for suspicious or disputed cases. Verify claim answers carefully before approving a return.
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="tabs" role="tablist" aria-label="Admin sections">
+      <button type="button" role="tab" data-tab="tab-reports" aria-selected="true">All reports</button>
+      <button type="button" role="tab" data-tab="tab-claims" aria-selected="false">Claims</button>
+      <button type="button" role="tab" data-tab="tab-disputes" aria-selected="false">Disputes &amp; complaints</button>
+    </div>
+
+    <section class="tabpanel" id="tab-reports" aria-label="All reports">
+      <div id="reports-panel"></div>
+    </section>
+
+    <section class="tabpanel hidden" id="tab-claims" aria-label="Claims">
+      <div id="claims-panel"></div>
+    </section>
+
+    <section class="tabpanel hidden" id="tab-disputes" aria-label="Disputes and complaints">
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Complaint ID</th>
+              <th>Type</th>
+              <th>Reported item / account</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="badge badge-id">CMP-01</span></td>
+              <td>Fake report</td>
+              <td>LF-1010 (Laptop Charger)</td>
+              <td><span class="badge badge-pending">Pending</span></td>
+              <td>
+                <div class="row-actions">
+                  <button class="btn btn-outline btn-sm" type="button" data-dispute="dismiss" data-id="CMP-01">Dismiss</button>
+                  <button class="btn btn-danger btn-sm" type="button" data-dispute="suspend" data-id="CMP-01">Suspend</button>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-id">CMP-02</span></td>
+              <td>False claim</td>
+              <td>CLM-504 · Unknown User</td>
+              <td><span class="badge badge-verification">Under Verification</span></td>
+              <td>
+                <div class="row-actions">
+                  <button class="btn btn-outline btn-sm" type="button" data-dispute="dismiss" data-id="CMP-02">Dismiss</button>
+                  <button class="btn btn-danger btn-sm" type="button" data-dispute="suspend" data-id="CMP-02">Suspend</button>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-id">CMP-03</span></td>
+              <td>Inappropriate content</td>
+              <td>LF-1008 description</td>
+              <td><span class="badge badge-verified">Resolved</span></td>
+              <td>
+                <div class="row-actions">
+                  <button class="btn btn-outline btn-sm" type="button" data-dispute="dismiss" data-id="CMP-03">Dismiss</button>
+                  <button class="btn btn-danger btn-sm" type="button" data-dispute="suspend" data-id="CMP-03">Suspend</button>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-id">CMP-04</span></td>
+              <td>Suspicious account</td>
+              <td>user_fake_99</td>
+              <td><span class="badge badge-pending">Open</span></td>
+              <td>
+                <div class="row-actions">
+                  <button class="btn btn-outline btn-sm" type="button" data-dispute="dismiss" data-id="CMP-04">Dismiss</button>
+                  <button class="btn btn-danger btn-sm" type="button" data-dispute="suspend" data-id="CMP-04">Suspend</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    (function () {
+      var user = App.requireUser();
+      if (!user) return;
+
+      var statsEl = document.getElementById('stats');
+      var reportsEl = document.getElementById('reports-panel');
+      var claimsEl = document.getElementById('claims-panel');
+
+      function statBlock(cls, n, label) {
+        return '<div class="stat ' + cls + '">' +
+          '<div class="n">' + n + '</div>' +
+          '<div class="l">' + label + '</div>' +
+        '</div>';
+      }
+
+      function renderStats() {
+        var items = LF.getItems();
+        var claims = LF.getClaims();
+        var openClaims = claims.filter(function (c) {
+          return c.status === 'pending' || c.status === 'under-verification';
+        }).length;
+        var flagged = claims.filter(function (c) { return c.status === 'rejected'; }).length +
+          items.filter(function (i) { return i.status === 'rejected'; }).length;
+        var returned = items.filter(function (i) { return i.status === 'returned'; }).length;
+
+        statsEl.innerHTML =
+          statBlock('blue', items.length, 'Reports') +
+          statBlock('amber', openClaims, 'Open claims') +
+          statBlock('amber', flagged, 'Flagged / Rejected') +
+          statBlock('green', returned, 'Returned');
+      }
+
+      function renderReports() {
+        var items = LF.getItems();
+        if (!items.length) {
+          reportsEl.innerHTML = '<div class="empty">' +
+            '<div class="ico" aria-hidden="true">📋</div>' +
+            '<p>No reports yet.</p></div>';
+          return;
+        }
+
+        var rows = items.map(function (it) {
+          return '<tr>' +
+            '<td><span class="badge badge-id">' + App.esc(it.id) + '</span></td>' +
+            '<td>' + App.esc(it.name) + '</td>' +
+            '<td>' + App.typeBadge(it.type) + '</td>' +
+            '<td>' + App.statusBadge(it.status) + '</td>' +
+            '<td>' + App.fmtDate(it.date) + '</td>' +
+            '<td><div class="row-actions">' +
+              '<a class="btn btn-outline btn-sm" href="item.html?id=' + encodeURIComponent(it.id) + '">View</a>' +
+              '<button class="btn btn-danger btn-sm" type="button" data-act="remove" data-id="' + App.esc(it.id) + '">Remove</button>' +
+              '<button class="btn btn-success btn-sm" type="button" data-act="return" data-id="' + App.esc(it.id) + '"' +
+                (it.status === 'returned' ? ' disabled' : '') + '>Mark returned</button>' +
+            '</div></td>' +
+          '</tr>';
+        }).join('');
+
+        reportsEl.innerHTML = '<div class="table-wrap"><table class="data">' +
+          '<thead><tr><th>ID</th><th>Item</th><th>Type</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody></table></div>';
+      }
+
+      function renderClaims() {
+        var claims = LF.getClaims();
+        if (!claims.length) {
+          claimsEl.innerHTML = '<div class="empty">' +
+            '<div class="ico" aria-hidden="true">🗂️</div>' +
+            '<p>No claims submitted yet.</p></div>';
+          return;
+        }
+
+        var rows = claims.map(function (c) {
+          var item = LF.getItem(c.itemId);
+          var itemName = item ? App.esc(item.name) : 'Removed report';
+          return '<tr>' +
+            '<td><span class="badge badge-id">' + App.esc(c.id) + '</span></td>' +
+            '<td>' + itemName + '</td>' +
+            '<td>' + App.esc(c.claimant) + '</td>' +
+            '<td>' + App.statusBadge(c.status) + '</td>' +
+            '<td><div class="row-actions">' +
+              '<button class="btn btn-outline btn-sm" type="button" data-act="verify" data-id="' + App.esc(c.id) + '">Verify now</button>' +
+              '<button class="btn btn-success btn-sm" type="button" data-act="approve" data-id="' + App.esc(c.id) + '">Approve</button>' +
+              '<button class="btn btn-danger btn-sm" type="button" data-act="reject" data-id="' + App.esc(c.id) + '">Reject</button>' +
+            '</div></td>' +
+          '</tr>';
+        }).join('');
+
+        claimsEl.innerHTML = '<div class="table-wrap"><table class="data">' +
+          '<thead><tr><th>Claim ID</th><th>Item</th><th>Claimant</th><th>Status</th><th>Actions</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody></table></div>';
+      }
+
+      function renderAll() {
+        renderStats();
+        renderReports();
+        renderClaims();
+      }
+
+      reportsEl.addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-act]');
+        if (!btn) return;
+        var id = btn.getAttribute('data-id');
+        var act = btn.getAttribute('data-act');
+
+        if (act === 'remove') {
+          if (!confirm('Remove report ' + id + '? This cannot be undone.')) return;
+          LF.removeItem(id);
+          renderAll();
+          App.toast('Report removed');
+        } else if (act === 'return') {
+          LF.updateItem(id, { status: 'returned' });
+          renderAll();
+          App.toast('Report ' + id + ' marked returned');
+        }
+      });
+
+      claimsEl.addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-act]');
+        if (!btn) return;
+        var id = btn.getAttribute('data-id');
+        var act = btn.getAttribute('data-act');
+        var map = {
+          verify: { status: 'under-verification', msg: 'Claim ' + id + ' moved to verification' },
+          approve: { status: 'verified', msg: 'Claim ' + id + ' approved' },
+          reject: { status: 'rejected', msg: 'Claim ' + id + ' rejected' }
+        };
+        var cfg = map[act];
+        if (!cfg) return;
+        LF.updateClaim(id, { status: cfg.status });
+        renderAll();
+        App.toast(cfg.msg);
+      });
+
+      document.getElementById('tab-disputes').addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-dispute]');
+        if (!btn) return;
+        var id = btn.getAttribute('data-id');
+        var act = btn.getAttribute('data-dispute');
+        App.toast(act === 'suspend' ? 'Complaint ' + id + ': reported account suspended' : 'Complaint ' + id + ' dismissed');
+      });
+
+      renderAll();
+    })();
+  </script>
+</body>
+</html>

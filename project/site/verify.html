@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ownership verification — Lost &amp; Found Citywide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="search">
+
+  <main id="main">
+    <div id="verify-root" aria-live="polite">
+      <div class="empty"><div class="ico" aria-hidden="true">…</div><p>Loading verification…</p></div>
+    </div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    (function () {
+      var user = App.requireUser();
+      if (!user) return;
+
+      var root = document.getElementById('verify-root');
+      var item = LF.getItem(App.param('id'));
+      var activeClaimId = App.param('claim');
+      var QUESTION_SET = [
+        'What private detail proves this item is yours?',
+        'What hidden mark, contents, or feature can only the owner describe?',
+        'Any other private detail only the true owner would know?'
+      ];
+
+      function enc(s) { return encodeURIComponent(s); }
+
+      if (!item) {
+        root.innerHTML = '<div class="empty">' +
+          '<div class="ico" aria-hidden="true">\u{1F50D}</div>' +
+          '<p>Report not found.</p>' +
+          '<p><a href="search.html">Back to search</a></p></div>';
+        return;
+      }
+
+      document.title = 'Verification for ' + item.id + ' — Lost & Found Citywide';
+
+      function questionFor(i) {
+        return QUESTION_SET[i] || ('Additional private detail #' + (i + 1));
+      }
+
+      function stepperHtml(status) {
+        var rank = { 'pending': 0, 'open': 0, 'under-verification': 1, 'verified': 2, 'returned': 3 };
+        var current = rank[status];
+        if (current === undefined) current = 0;
+        var labels = ['Pending', 'Under Verification', 'Verified', 'Returned'];
+        var lis = labels.map(function (label, i) {
+          var cls = '';
+          if (status === 'returned') { cls = 'done'; }
+          else if (i < current) { cls = 'done'; }
+          else if (i === current) { cls = 'current'; }
+          return '<li data-step="' + (i + 1) + '"' + (cls ? ' class="' + cls + '"' : '') + '>' + label + '</li>';
+        }).join('');
+        return '<ol class="stepper" aria-label="Verification progress">' + lis + '</ol>';
+      }
+
+      function looseMatch(hints, answers) {
+        function toks(s) {
+          return String(s || '').toLowerCase().split(/[^a-z0-9]+/)
+            .filter(function (w) { return w.length > 2; });
+        }
+        var hintTokens = toks(hints.join(' '));
+        var answerTokens = toks(answers.join(' '));
+        if (!hintTokens.length) return 0;
+        var hit = 0;
+        hintTokens.forEach(function (t) { if (answerTokens.indexOf(t) !== -1) hit++; });
+        return hit / hintTokens.length;
+      }
+
+      function newClaimView() {
+        var hints = item.hints && item.hints.length ? item.hints : [''];
+        var questions = hints.map(function (hint, i) {
+          return '<li><div class="field mt-0">' +
+            '<label for="ans-' + i + '">' + App.esc(questionFor(i)) + '</label>' +
+            '<input id="ans-' + i + '" name="ans" type="text" autocomplete="off" placeholder="Type what you know">' +
+          '</div></li>';
+        }).join('');
+
+        return '<div class="verify-q">' +
+          '<h2 class="mt-0" style="font-size:1.1rem">Private questions</h2>' +
+          '<p class="text-muted" style="font-size:.9rem;margin-bottom:14px">Only the real owner can answer these. Your answers stay private and are never shown on the public listing.</p>' +
+          '<form id="verify-form" novalidate>' +
+            '<ol>' + questions + '</ol>' +
+            '<button class="btn btn-primary" type="submit">Submit answers</button>' +
+          '</form>' +
+          '<div class="reveal-box" style="margin-top:16px">' +
+            '<details><summary>Demo mode: reveal expected answers</summary>' +
+            '<p style="margin:8px 0 4px;font-weight:600">Prototype cheat sheet — hidden from real claimants:</p>' +
+            '<ul style="padding-left:18px">' + hints.map(function (h) { return '<li>' + App.esc(h || '—') + '</li>'; }).join('') + '</ul>' +
+            '</details>' +
+          '</div>' +
+        '</div>';
+      }
+
+      function claimView(claim) {
+        var h = '<div class="card"><div class="card-body">';
+        h += '<div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:10px">' +
+          '<h2 class="mt-0" style="font-size:1.1rem">Claim <span class="badge badge-id">' + App.esc(claim.id) + '</span></h2>' +
+          App.statusBadge(claim.status) + '</div>';
+        h += '<p class="text-muted" style="font-size:.875rem">Submitted ' + App.fmtDate(claim.createdAt) + ' · Updated ' + App.fmtDate(claim.updatedAt || claim.createdAt) + '</p>';
+        h += '<h3 style="margin-top:14px;font-size:.95rem">Your answers (read-only)</h3>';
+        h += '<ul class="detail-list">' + (claim.answers || []).map(function (ans, i) {
+          return '<li><span class="k">Answer ' + (i + 1) + '</span><span class="v">' + App.esc(ans || '—') + '</span></li>';
+        }).join('') + '</ul>';
+
+        if (claim.status === 'verified') {
+          h += '<div class="alert alert-success" style="margin-top:14px">Ownership verified. Arrange a safe handover at a public place.</div>' +
+            '<div class="flex"><a class="btn btn-primary" href="messages.html">Arrange safe handover</a>' +
+            '<button class="btn btn-success" type="button" id="mark-returned">Mark returned</button></div>';
+        } else if (claim.status === 'under-verification') {
+          h += '<div class="alert alert-warn" style="margin-top:14px">Your answers are being reviewed. This can take up to 24 hours. You will be notified.</div>';
+        } else if (claim.status === 'returned') {
+          h += '<div class="alert alert-info" style="margin-top:14px">This item was marked returned successfully.</div>';
+        } else if (claim.status === 'rejected') {
+          h += '<div class="alert alert-error" style="margin-top:14px">This claim did not pass verification. You may request a manual review.</div>';
+        } else {
+          h += '<div class="alert alert-warn" style="margin-top:14px">Your claim is pending review.</div>';
+        }
+        h += '</div></div>';
+        return h;
+      }
+
+      function currentClaim() {
+        if (activeClaimId) {
+          var c = LF.getClaim(activeClaimId);
+          if (c && c.claimant === user.name) return c;
+        }
+        var mine = LF.getClaimsFor(item.id).filter(function (c) { return c.claimant === user.name; });
+        return mine.length ? mine[0] : null;
+      }
+
+      function attachForm() {
+        var form = document.getElementById('verify-form');
+        if (!form) return;
+        form.addEventListener('submit', function (e) {
+          e.preventDefault();
+          var answers = [];
+          App.$$('input[name="ans"]', form).forEach(function (inp) { answers.push(inp.value.trim()); });
+
+          var claim = LF.addClaim({
+            id: LF.nextId('CLM', LF.getClaims(), 'id'),
+            itemId: item.id,
+            claimant: user.name,
+            status: 'under-verification',
+            answers: answers,
+            createdAt: LF.today()
+          });
+          activeClaimId = claim.id;
+
+          var ratio = looseMatch(item.hints || [], answers);
+          if (ratio >= 0.6) {
+            LF.updateClaim(claim.id, { status: 'verified' });
+            App.toast('Answers matched. Ownership verified.');
+          } else {
+            App.toast('Sent to admin for manual review.', 'warn');
+          }
+          render();
+        });
+      }
+
+      function attachReturned(claim) {
+        var btn = document.getElementById('mark-returned');
+        if (!btn) return;
+        btn.addEventListener('click', function () {
+          LF.updateClaim(claim.id, { status: 'returned' });
+          LF.updateItem(item.id, { status: 'returned' });
+          App.toast('Item marked returned. Thank you!');
+          render();
+        });
+      }
+
+      function render() {
+        var claim = currentClaim();
+        var status = claim ? claim.status : 'pending';
+
+        var html = '';
+        html += '<p class="mb-16"><a href="item.html?id=' + enc(item.id) + '">&larr; Back to item</a></p>';
+        html += '<h1 class="page-title">Ownership verification</h1>';
+        html += '<p class="page-sub">Answer private questions about item <span class="badge badge-id">' + App.esc(item.id) + '</span>. Your answers are never shown publicly — they are used only to confirm real ownership.</p>';
+        html += stepperHtml(status);
+        html += claim ? claimView(claim) : newClaimView();
+        html += '<div class="alert alert-info" style="margin-top:20px">Disputed or unclear cases go to administrators for manual review. <a href="admin.html">Open admin review</a>.</div>';
+
+        root.innerHTML = html;
+        if (claim) { attachReturned(claim); } else { attachForm(); }
+      }
+
+      render();
+    })();
+  </script>
+</body>
+</html>

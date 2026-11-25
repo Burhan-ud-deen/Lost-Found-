@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report a lost item — Lost &amp; Found Citywide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="report-lost">
+
+  <main id="main">
+    <h1 class="page-title">Report a lost item</h1>
+    <p class="page-sub">Give as much detail as you can. The system compares your report with found items and suggests possible matches.</p>
+
+    <div id="form-alert" class="hidden" aria-live="polite"></div>
+
+    <form class="form-card" id="report-form" novalidate>
+      <div class="field">
+        <label for="r-name">Item name <span class="hint">Required</span></label>
+        <input id="r-name" name="name" type="text" required placeholder="e.g. Black Samsung phone">
+        <span class="error">Enter the item name.</span>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="r-category">Category <span class="hint">Required</span></label>
+          <select id="r-category" name="category" required>
+            <option value="">Select a category</option>
+          </select>
+          <span class="error">Choose a category.</span>
+        </div>
+        <div class="field">
+          <label for="r-photo">Photo description / emoji <span class="hint">Optional</span></label>
+          <input id="r-photo" name="emoji" type="text" value="🔍" placeholder="🔍 or a short description">
+          <span class="error">Enter a photo description or emoji.</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="r-description">Description <span class="hint">Required</span></label>
+        <textarea id="r-description" name="description" required placeholder="What does it look like? What was it carrying?"></textarea>
+        <span class="error">Add a short description.</span>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="r-color">Color</label>
+          <input id="r-color" name="color" type="text" placeholder="e.g. Black">
+        </div>
+        <div class="field">
+          <label for="r-brand">Brand</label>
+          <input id="r-brand" name="brand" type="text" placeholder="e.g. Samsung">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="r-location">Last known location <span class="hint">Required</span></label>
+        <input id="r-location" name="location" type="text" required placeholder="e.g. Clifton Beach Road">
+        <span class="error">Enter where you last had the item.</span>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="r-date">Date <span class="hint">Required</span></label>
+          <input id="r-date" name="date" type="date" required>
+          <span class="error">Choose the date.</span>
+        </div>
+        <div class="field">
+          <label for="r-time">Time (approx.)</label>
+          <input id="r-time" name="time" type="time">
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="r-city">City</label>
+          <select id="r-city" name="city">
+            <option value="Karachi">Karachi</option>
+            <option value="Lahore">Lahore</option>
+            <option value="Islamabad">Islamabad</option>
+            <option value="Rawalpindi">Rawalpindi</option>
+            <option value="Peshawar">Peshawar</option>
+            <option value="Quetta">Quetta</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="r-area">Area <span class="hint">Required</span></label>
+          <input id="r-area" name="area" type="text" required placeholder="e.g. Clifton">
+          <span class="error">Enter the area.</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="r-details">Additional identifying details</label>
+        <textarea id="r-details" name="details" placeholder="Anything else that helps match your report."></textarea>
+      </div>
+
+      <fieldset>
+        <legend>Private verification hints</legend>
+        <div class="field">
+          <label for="r-hints">Secret details for ownership checks</label>
+          <textarea id="r-hints" name="hints" required placeholder="One per line. Kept hidden from the public; used to verify real ownership."></textarea>
+          <span class="hint">One per line. Kept hidden from the public; used to verify real ownership.</span>
+          <span class="error">Add at least one private hint.</span>
+        </div>
+      </fieldset>
+
+      <div class="flex flex-between" style="justify-content:space-between">
+        <a class="btn btn-outline" href="lost.html">Cancel</a>
+        <button class="btn btn-primary" type="submit">Submit report</button>
+      </div>
+    </form>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    (function () {
+      var user = App.requireUser();
+      if (!user) return;
+
+      var form = document.getElementById('report-form');
+      var alertBox = document.getElementById('form-alert');
+      var catSel = document.getElementById('r-category');
+      LF.CATEGORIES.forEach(function (c) {
+        var o = document.createElement('option');
+        o.value = c;
+        o.textContent = c;
+        catSel.appendChild(o);
+      });
+
+      function mark(el, bad) {
+        var field = el.closest('.field');
+        if (field) field.classList.toggle('invalid', bad);
+        return bad;
+      }
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var bad = false;
+        var name = document.getElementById('r-name');
+        var category = document.getElementById('r-category');
+        var desc = document.getElementById('r-description');
+        var location = document.getElementById('r-location');
+        var date = document.getElementById('r-date');
+        var area = document.getElementById('r-area');
+        var hints = document.getElementById('r-hints');
+
+        if (mark(name, !name.value.trim())) bad = true;
+        if (mark(category, !category.value)) bad = true;
+        if (mark(desc, !desc.value.trim())) bad = true;
+        if (mark(location, !location.value.trim())) bad = true;
+        if (mark(date, !date.value)) bad = true;
+        if (mark(area, !area.value.trim())) bad = true;
+        if (mark(hints, !hints.value.trim())) bad = true;
+
+        if (bad) {
+          alertBox.className = 'alert alert-error';
+          alertBox.textContent = 'Please fix the highlighted fields and submit again.';
+          alertBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
+
+        var color = document.getElementById('r-color').value.trim();
+        var brand = document.getElementById('r-brand').value.trim();
+        var item = {
+          id: LF.nextId('LF', LF.getItems(), 'id'),
+          type: 'lost',
+          name: name.value.trim(),
+          category: category.value,
+          emoji: document.getElementById('r-photo').value.trim() || '🔍',
+          color: color || '',
+          brand: brand || '',
+          city: document.getElementById('r-city').value,
+          area: area.value.trim(),
+          location: location.value.trim(),
+          date: date.value,
+          time: document.getElementById('r-time').value,
+          description: desc.value.trim(),
+          keywords: [name.value.trim(), category.value, color, brand].join(' ').toLowerCase(),
+          hints: hints.value.split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean),
+          owner: user.name,
+          createdAt: LF.today(),
+          status: 'open'
+        };
+
+        LF.addItem(item);
+        form.reset();
+
+        alertBox.className = 'alert alert-success';
+        alertBox.innerHTML = 'Report submitted. Your Report ID is <strong>' + App.esc(item.id) + '</strong>. ' +
+          'Keep it safe — you will need it to track or claim your item. ' +
+          '<div class="flex" style="margin-top:12px">' +
+            '<a class="btn btn-outline btn-sm" href="item.html?id=' + encodeURIComponent(item.id) + '">View report</a>' +
+            '<a class="btn btn-primary btn-sm" href="matches.html?a=' + encodeURIComponent(item.id) + '">View matches</a>' +
+          '</div>';
+        alertBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        App.toast('Lost item reported: ' + item.id);
+      });
+    })();
+  </script>
+</body>
+</html>

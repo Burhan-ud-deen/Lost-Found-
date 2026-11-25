@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My reports — Lost &amp; Found Citywide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="dashboard">
+
+  <main id="main">
+    <h1 class="page-title">My reports</h1>
+    <p class="page-sub">Track every report you posted, every claim you made, and the status of each recovery.</p>
+
+    <div class="flex mb-24" aria-label="Quick actions">
+      <a class="btn btn-primary" href="report-lost.html">Report lost</a>
+      <a class="btn btn-success" href="report-found.html">Report found</a>
+      <a class="btn btn-outline" href="notifications.html">Notifications</a>
+    </div>
+
+    <div class="stats" id="stats-row" aria-label="Summary statistics"></div>
+
+    <div class="tabs" role="tablist" aria-label="My activity">
+      <button type="button" role="tab" id="tab-reports" aria-controls="panel-reports" aria-selected="true" data-tab="panel-reports">Reports I posted</button>
+      <button type="button" role="tab" id="tab-claims" aria-controls="panel-claims" aria-selected="false" data-tab="panel-claims">Claims I made</button>
+    </div>
+
+    <div class="tabpanel" id="panel-reports" role="tabpanel" aria-labelledby="tab-reports">
+      <div id="reports-body"></div>
+    </div>
+
+    <div class="tabpanel hidden" id="panel-claims" role="tabpanel" aria-labelledby="tab-claims">
+      <div id="claims-body"></div>
+    </div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    (function () {
+      var user = App.requireUser();
+      if (!user) return;
+
+      var statsRow = document.getElementById('stats-row');
+      var reportsBody = document.getElementById('reports-body');
+      var claimsBody = document.getElementById('claims-body');
+
+      function enc(s) { return encodeURIComponent(s); }
+
+      function stat(kind, n, label) {
+        return '<div class="stat ' + kind + '"><div class="n">' + n + '</div><div class="l">' + App.esc(label) + '</div></div>';
+      }
+
+      function emptyReports() {
+        return '<div class="empty">' +
+          '<div class="ico" aria-hidden="true">\u{1F4DD}</div>' +
+          '<p>You have not posted any reports yet.</p>' +
+          '<p>Post your first report to start matching.</p>' +
+          '<div class="flex" style="justify-content:center;margin-top:14px">' +
+            '<a class="btn btn-primary" href="report-lost.html">Report lost</a>' +
+            '<a class="btn btn-success" href="report-found.html">Report found</a>' +
+          '</div></div>';
+      }
+
+      function reportsTable(items) {
+        var rows = items.map(function (item) {
+          return '<tr>' +
+            '<td><span class="badge badge-id">' + App.esc(item.id) + '</span></td>' +
+            '<td><a href="item.html?id=' + enc(item.id) + '">' + App.esc(item.name) + '</a></td>' +
+            '<td>' + App.typeBadge(item.type) + '</td>' +
+            '<td>' + App.statusBadge(item.status === 'open' ? 'open' : item.status) + '</td>' +
+            '<td>' + App.fmtDate(item.date) + '</td>' +
+            '<td><div class="row-actions">' +
+              '<a class="btn btn-outline btn-sm" href="item.html?id=' + enc(item.id) + '">View</a>' +
+              '<a class="btn btn-outline btn-sm" href="matches.html?a=' + enc(item.id) + '">Matches</a>' +
+              '<button class="btn btn-danger btn-sm" type="button" data-del="' + App.esc(item.id) + '">Delete</button>' +
+            '</div></td>' +
+          '</tr>';
+        }).join('');
+
+        return '<div class="table-wrap"><table class="data">' +
+          '<thead><tr>' +
+            '<th scope="col">Report ID</th><th scope="col">Item</th><th scope="col">Type</th>' +
+            '<th scope="col">Status</th><th scope="col">Date</th><th scope="col">Actions</th>' +
+          '</tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table></div>';
+      }
+
+      function claimsTable(claims) {
+        if (!claims.length) {
+          return '<div class="empty">' +
+            '<div class="ico" aria-hidden="true">\u{1F510}</div>' +
+            '<p>You have not made any claims yet.</p>' +
+            '<p><a href="found.html">Browse found items</a> and start a verification if one is yours.</p>' +
+          '</div>';
+        }
+        var rows = claims.map(function (c) {
+          var item = LF.getItem(c.itemId);
+          return '<tr>' +
+            '<td><span class="badge badge-id">' + App.esc(c.id) + '</span></td>' +
+            '<td>' + App.esc(item ? item.name : '—') + ' <span class="badge badge-id">' + App.esc(c.itemId) + '</span></td>' +
+            '<td>' + App.statusBadge(c.status) + '</td>' +
+            '<td>' + App.fmtDate(c.updatedAt || c.createdAt) + '</td>' +
+            '<td><div class="row-actions">' +
+              '<a class="btn btn-outline btn-sm" href="verify.html?id=' + enc(c.itemId) + '&claim=' + enc(c.id) + '">Open</a>' +
+            '</div></td>' +
+          '</tr>';
+        }).join('');
+
+        return '<div class="table-wrap"><table class="data">' +
+          '<thead><tr>' +
+            '<th scope="col">Claim ID</th><th scope="col">Item</th>' +
+            '<th scope="col">Status</th><th scope="col">Updated</th><th scope="col">Actions</th>' +
+          '</tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table></div>';
+      }
+
+      function render() {
+        var myItems = LF.getItems().filter(function (it) { return it.owner === user.name; });
+        var myClaims = LF.getClaims().filter(function (c) { return c.claimant === user.name; });
+        var openCount = myItems.filter(function (it) { return it.status === 'open' || it.status === 'pending'; }).length;
+        var returnedCount = myItems.filter(function (it) { return it.status === 'returned'; }).length;
+
+        statsRow.innerHTML =
+          stat('blue', myItems.length, 'My reports') +
+          stat('blue', myClaims.length, 'My claims') +
+          stat('amber', openCount, 'Active') +
+          stat('green', returnedCount, 'Returned');
+
+        reportsBody.innerHTML = myItems.length ? reportsTable(myItems) : emptyReports();
+        claimsBody.innerHTML = claimsTable(myClaims);
+
+        App.$$('#reports-body [data-del]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var id = btn.dataset.del;
+            if (window.confirm('Delete report ' + id + '? This cannot be undone.')) {
+              LF.removeItem(id);
+              App.toast('Report deleted.');
+              render();
+            }
+          });
+        });
+      }
+
+      render();
+    })();
+  </script>
+</body>
+</html>

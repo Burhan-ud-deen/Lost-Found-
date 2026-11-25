@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="462" height="552" viewBox="0 0 462 552">
+  <defs>
+    <filter id="cardShadow" x="-15%" y="-15%" width="130%" height="140%">
+      <feDropShadow dx="0" dy="5" stdDeviation="9" flood-color="#1d3445" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect width="462" height="552" fill="#eff7f7"/>
+  <!-- Main login card -->
+  <rect x="11.5" y="28.5" width="419" height="486" rx="16" fill="#ffffff" stroke="#e0e8ed" stroke-width="1" filter="url(#cardShadow)"/>
+
+  <!-- Brand heading -->
+  <text x="52" y="94" font-family="Arial, sans-serif" font-size="22" fill="#1f2b46">🔍</text>
+  <text x="82" y="94" font-family="Georgia, 'Times New Roman', serif" font-size="20" font-weight="700" fill="#1f2b46">Lost &amp; Found</text>
+  <text x="210" y="94" font-family="Georgia, 'Times New Roman', serif" font-size="20" font-weight="700" fill="#15999b">Citywide</text>
+
+  <!-- Tabs -->
+  <text x="136" y="149" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#078b8c">Log In</text>
+  <text x="305" y="149" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#596b8a">Create Account</text>
+  <line x1="52" y1="167.5" x2="390" y2="167.5" stroke="#dbe3ec" stroke-width="2"/>
+  <line x1="52" y1="167.5" x2="221" y2="167.5" stroke="#078b8c" stroke-width="2"/>
+
+  <!-- Email label and field -->
+  <text x="52" y="208" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#1f2b46">Email or Phone</text>
+  <rect x="52" y="219.5" width="338" height="39" rx="8" fill="#ffffff" stroke="#d9e2ee" stroke-width="1"/>
+  <text x="67" y="244" font-family="Arial, sans-serif" font-size="14" fill="#718096">your@email.com</text>
+
+  <!-- Password label and field -->
+  <text x="52" y="294" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#1f2b46">Password</text>
+  <rect x="52" y="306" width="338" height="39" rx="8" fill="#ffffff" stroke="#d9e2ee" stroke-width="1"/>
+  <text x="67" y="330.5" font-family="Arial, sans-serif" font-size="14" fill="#718096">••••••••</text>
+
+  <!-- Login button -->
+  <rect x="52" y="366" width="338" height="47" rx="8" fill="#202b49"/>
+  <text x="221" y="395" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#ffffff">Log In</text>
+
+  <!-- Forgot password -->
+  <text x="221" y="441" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#657b9e">Forgot password?</text>
+</svg>

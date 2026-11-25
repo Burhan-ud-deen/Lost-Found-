@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Messages — Lost &amp; Found Citywide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="messages">
+
+  <main id="main">
+    <h1 class="page-title">Messages</h1>
+    <p class="page-sub">Talk before you meet. Keep the conversation on-platform until ownership is verified and a safe handover is arranged.</p>
+    <div id="msg-root"></div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    (function () {
+      var user = App.requireUser();
+      if (!user) return;
+
+      var root = document.getElementById('msg-root');
+      var threads = LF.getThreads();
+      var activeId = threads.length ? threads[0].id : null;
+
+      function now() {
+        var d = new Date();
+        return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+      }
+
+      function activeThread() {
+        return threads.filter(function (t) { return t.id === activeId; })[0] || null;
+      }
+
+      function scrollBottom() {
+        var body = document.getElementById('chat-body');
+        if (body) body.scrollTop = body.scrollHeight;
+      }
+
+      function threadListHtml() {
+        return '<ul class="thread-list">' + threads.map(function (t) {
+          var last = t.messages[t.messages.length - 1];
+          var preview = last ? App.truncate(last.text, 42) : 'No messages yet';
+          return '<li' + (t.id === activeId ? ' class="active"' : '') + '>' +
+            '<button type="button" data-thread="' + t.id + '">' +
+              App.esc(t['with']) + ' <span class="badge badge-id">' + App.esc(t.about) + '</span>' +
+              '<span class="preview">' + App.esc(preview) + '</span>' +
+            '</button></li>';
+        }).join('') + '</ul>';
+      }
+
+      function chatHtml() {
+        var t = activeThread();
+        if (!t) {
+          return '<div class="chat"><div class="chat-body"><p class="text-muted">Select a conversation to start.</p></div></div>';
+        }
+        var bubbles = t.messages.map(function (m) {
+          return '<div class="bubble ' + (m.from === 'me' ? 'me' : 'them') + '">' +
+            '<span class="who">' + App.esc(m.who) + '</span>' + App.esc(m.text) + '</div>';
+        }).join('');
+
+        return '<div class="chat">' +
+          '<div class="chat-head">' +
+            '<span>' + App.esc(t['with']) + ' <span class="badge badge-id">' + App.esc(t.about) + '</span></span>' +
+            '<span class="text-muted" style="font-weight:600;font-size:.78rem">Safe communication</span>' +
+          '</div>' +
+          '<div class="chat-body" id="chat-body" aria-live="polite">' + bubbles + '</div>' +
+          '<form class="chat-input" id="chat-form">' +
+            '<label class="visually-hidden" for="chat-msg">Type a message</label>' +
+            '<input id="chat-msg" type="text" autocomplete="off" placeholder="Write a message…">' +
+            '<button class="btn btn-primary" type="submit">Send</button>' +
+          '</form>' +
+        '</div>';
+      }
+
+      function render() {
+        if (!threads.length) {
+          root.innerHTML = '<div class="empty">' +
+            '<div class="ico" aria-hidden="true">\u{1F4AC}</div>' +
+            '<p>No conversations yet.</p>' +
+            '<p><a href="search.html">Find items</a> and message an owner or finder to start.</p></div>';
+          return;
+        }
+
+        root.innerHTML = '<div class="msg-layout">' + threadListHtml() + chatHtml() + '</div>';
+
+        App.$$('.thread-list button', root).forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            activeId = btn.dataset.thread;
+            render();
+          });
+        });
+
+        var form = document.getElementById('chat-form');
+        if (form) {
+          form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            send();
+          });
+        }
+
+        setTimeout(scrollBottom, 0);
+      }
+
+      function send() {
+        var input = document.getElementById('chat-msg');
+        if (!input) return;
+        var text = input.value.trim();
+        if (!text) return;
+        var t = activeThread();
+        if (!t) return;
+
+        t.messages.push({ from: 'me', who: 'You', text: text, time: now() });
+        LF.saveThreads(threads);
+        input.value = '';
+        render();
+
+        setTimeout(function () {
+          t.messages.push({ from: 'them', who: t['with'], text: 'Thanks — I have received your message.', time: now() });
+          LF.saveThreads(threads);
+          render();
+        }, 1200);
+      }
+
+      render();
+    })();
+  </script>
+</body>
+</html>

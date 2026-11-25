@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Search — Lost &amp; Found Citywide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="search">
+
+  <main id="main">
+    <section class="search-hero" aria-labelledby="search-title">
+      <h1 id="search-title">Search lost &amp; found items</h1>
+      <form class="search-bar" id="search-form" action="search.html" method="get" role="search">
+        <label class="visually-hidden" for="q">Search items</label>
+        <input id="q" name="q" type="search" placeholder="Try “black Samsung phone”, “wallet”, “Clifton”…">
+        <button class="btn" type="submit" style="background:var(--ink);color:#fff">Search</button>
+      </form>
+    </section>
+
+    <form class="filters" id="filters" aria-label="Filter results">
+      <div class="field">
+        <label for="f-category">Category</label>
+        <select id="f-category" name="category">
+          <option value="">All categories</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-city">City</label>
+        <input id="f-city" name="city" type="text" placeholder="e.g. Karachi">
+      </div>
+      <div class="field">
+        <label for="f-area">Area</label>
+        <input id="f-area" name="area" type="text" placeholder="e.g. Clifton">
+      </div>
+      <div class="field">
+        <label for="f-date">Date</label>
+        <input id="f-date" name="date" type="date">
+      </div>
+      <div class="field">
+        <label for="f-color">Color</label>
+        <input id="f-color" name="color" type="text" placeholder="e.g. Black">
+      </div>
+      <div class="field">
+        <label for="f-brand">Brand</label>
+        <input id="f-brand" name="brand" type="text" placeholder="e.g. Samsung">
+      </div>
+      <div class="field">
+        <label for="f-keywords">Keywords</label>
+        <input id="f-keywords" name="keywords" type="text" placeholder="e.g. keys carabiner">
+        <span class="hint">Merged with the search text above.</span>
+      </div>
+      <div class="actions">
+        <button class="btn btn-outline" type="button" id="reset-btn">Reset filters</button>
+        <button class="btn btn-primary" type="submit">Apply filters</button>
+      </div>
+    </form>
+
+    <p class="text-muted mb-16" id="results-count" role="status" aria-live="polite"></p>
+
+    <section class="grid" id="results-grid" aria-label="Search results" aria-live="polite"></section>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    (function () {
+      var form = document.getElementById('filters');
+      var searchForm = document.getElementById('search-form');
+      var grid = document.getElementById('results-grid');
+      var count = document.getElementById('results-count');
+
+      var catSel = document.getElementById('f-category');
+      LF.CATEGORIES.forEach(function (c) {
+        var o = document.createElement('option');
+        o.textContent = c;
+        o.value = c;
+        catSel.appendChild(o);
+      });
+
+      var params = new URLSearchParams(location.search);
+      var prefill = {
+        q: params.get('q') || '',
+        category: params.get('category') || '',
+        city: params.get('city') || '',
+        area: params.get('area') || '',
+        date: params.get('date') || '',
+        color: params.get('color') || '',
+        brand: params.get('brand') || '',
+        keywords: params.get('keywords') || ''
+      };
+      Object.keys(prefill).forEach(function (k) {
+        var el = document.getElementById('q') && k === 'q' ? document.getElementById('q') : document.getElementById('f-' + k);
+        if (el) el.value = prefill[k];
+      });
+
+      function norm(s) { return String(s || '').trim().toLowerCase(); }
+
+      function apply() {
+        var q = prefill.q;
+        var list = LF.getItems().filter(function (it) {
+          if (prefill.category && it.category !== prefill.category) return false;
+          if (prefill.city && norm(it.city).indexOf(norm(prefill.city)) === -1) return false;
+          if (prefill.area && norm(it.area).indexOf(norm(prefill.area)) === -1) return false;
+          if (prefill.date && it.date !== prefill.date) return false;
+          if (prefill.color && norm(it.color).indexOf(norm(prefill.color)) === -1) return false;
+          if (prefill.brand && norm(it.brand).indexOf(norm(prefill.brand)) === -1) return false;
+          if (prefill.keywords) {
+            var hay = norm([it.name, it.keywords, it.description].join(' '));
+            var wanted = prefill.keywords.toLowerCase().split(/\s+/).filter(Boolean);
+            for (var i = 0; i < wanted.length; i++) {
+              if (hay.indexOf(wanted[i]) === -1) return false;
+            }
+          }
+          return true;
+        });
+
+        var query = null;
+        if (q) {
+          var merged = prefill.keywords ? (q + ' ' + prefill.keywords) : q;
+          var wanted = merged.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+          list = list.filter(function (it) {
+            var hay = norm([it.name, it.keywords, it.description, it.area, it.city].join(' '));
+            return wanted.some(function (w) { return hay.indexOf(w) !== -1; });
+          });
+          query = { name: merged, keywords: merged, description: merged, category: prefill.category, city: prefill.city, area: prefill.area, date: prefill.date, color: prefill.color, brand: prefill.brand };
+          list = list.map(function (it) { return { it: it, s: App.scoreMatch(query, it) }; })
+            .sort(function (a, b) { return b.s - a.s; })
+            .map(function (p) { return p.it; });
+        }
+
+        count.textContent = list.length + (list.length === 1 ? ' item found' : ' items found');
+        App.renderGrid(grid, list, q || anyFilter() ? 'No items match your search. Try fewer filters.' : 'No items reported yet.');
+      }
+
+      function anyFilter() {
+        return !!(prefill.category || prefill.city || prefill.area || prefill.date || prefill.color || prefill.brand || prefill.keywords);
+      }
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        prefill.category = document.getElementById('f-category').value;
+        prefill.city = document.getElementById('f-city').value;
+        prefill.area = document.getElementById('f-area').value;
+        prefill.date = document.getElementById('f-date').value;
+        prefill.color = document.getElementById('f-color').value;
+        prefill.brand = document.getElementById('f-brand').value;
+        prefill.keywords = document.getElementById('f-keywords').value;
+        var qs = new URLSearchParams();
+        if (prefill.q) qs.set('q', prefill.q);
+        Object.keys(prefill).forEach(function (k) {
+          if (k !== 'q' && prefill[k]) qs.set(k, prefill[k]);
+        });
+        var queryStr = qs.toString();
+        history.replaceState(null, '', 'search.html' + (queryStr ? '?' + queryStr : ''));
+        apply();
+      });
+
+      document.getElementById('reset-btn').addEventListener('click', function () {
+        App.go('search.html');
+      });
+
+      apply();
+    })();
+  </script>
+</body>
+</html>

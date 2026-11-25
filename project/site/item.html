@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Item Details — Lost &amp; Found Citywide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="search">
+
+  <main id="main">
+    <p class="mb-16"><a href="search.html">&larr; Back to search</a></p>
+    <h1 class="page-title" id="item-h1">Item details</h1>
+
+    <div id="item-root" aria-live="polite">
+      <div class="empty"><div class="ico">…</div><p>Loading item…</p></div>
+    </div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    (function () {
+      var root = document.getElementById('item-root');
+      var id = App.param('id');
+      var item = id ? LF.getItem(id) : null;
+
+      if (!item) {
+        root.innerHTML = '<div class="empty">' +
+          '<div class="ico" aria-hidden="true">\u{1F50D}</div>' +
+          '<p>Report not found.</p>' +
+          '<p><a href="search.html">Back to search</a></p></div>';
+        return;
+      }
+
+      document.title = item.name + ' (' + item.id + ') — Lost & Found Citywide';
+      document.getElementById('item-h1').textContent = item.name;
+
+      var matches = App.findMatches(item);
+      var claims = LF.getClaimsFor(item.id);
+
+      var rows = [
+        ['Report ID', '<span class="badge badge-id">' + App.esc(item.id) + '</span>'],
+        ['Type', App.typeBadge(item.type)],
+        ['Status', App.statusBadge(item.status === 'open' ? 'open' : item.status)],
+        ['Category', App.esc(item.category)],
+        ['Color', App.esc(item.color || '—')],
+        ['Brand', App.esc(item.brand || '—')],
+        ['Location', App.esc(item.location || '—')],
+        ['City / Area', App.esc(item.area) + ', ' + App.esc(item.city)],
+        ['Date', App.fmtDate(item.date)],
+        ['Approx. time', App.esc(item.time || '—')],
+        ['Reported by', App.esc(item.owner || '—')]
+      ].map(function (r) {
+        return '<li><span class="k">' + r[0] + '</span><span class="v">' + r[1] + '</span></li>';
+      }).join('');
+
+      var matchHtml;
+      if (matches.length) {
+        matchHtml = matches.slice(0, 3).map(function (m) {
+          return '<div class="card"><div class="card-body">' +
+            '<div class="flex flex-between" style="justify-content:space-between">' +
+              '<span class="badge ' + (m.score >= 75 ? 'badge-verified' : 'badge-verification') + '">' + m.score + '% match</span>' +
+              '<span class="badge badge-id">' + App.esc(m.item.id) + '</span>' +
+            '</div>' +
+            '<h3 style="margin-top:8px">' + App.esc(m.item.name) + '</h3>' +
+            '<p>' + App.esc(m.item.area) + ', ' + App.esc(m.item.city) + ' · ' + App.fmtDate(m.item.date) + '</p>' +
+            '<div class="flex" style="margin-top:12px">' +
+              '<a class="btn btn-outline btn-sm" href="item.html?id=' + encodeURIComponent(m.item.id) + '">View item</a>' +
+              '<a class="btn btn-primary btn-sm" href="matches.html?a=' + encodeURIComponent(item.id) + '&b=' + encodeURIComponent(m.item.id) + '">Compare</a>' +
+            '</div>' +
+          '</div></div>';
+        }).join('');
+      } else {
+        matchHtml = '<div class="empty"><div class="ico">\u{1F914}</div><p>No possible matches yet. The system keeps checking as new reports arrive.</p></div>';
+      }
+
+      var claimHtml = '';
+      if (item.type === 'found') {
+        claimHtml =
+          '<div class="card"><div class="card-body">' +
+            '<h3>Think this is yours?</h3>' +
+            '<p>Start a claim. You will answer private verification questions set by the finder — details are never shown publicly.</p>' +
+            '<div class="flex" style="margin-top:12px">' +
+              '<a class="btn btn-primary" href="verify.html?id=' + encodeURIComponent(item.id) + '">Start verification</a>' +
+              '<a class="btn btn-outline" href="messages.html">Message finder</a>' +
+            '</div>' +
+            (claims.length
+              ? '<p class="text-muted" style="margin-top:12px;font-size:.85rem">' + claims.length + ' claim(s) on this item · Latest: ' + App.statusBadge(claims[0].status) + '</p>'
+              : '') +
+          '</div></div>';
+      } else {
+        claimHtml =
+          '<div class="card"><div class="card-body">' +
+            '<h3>Have you found this item?</h3>' +
+            '<p>Report it as found, or message the owner directly. Private hints help you confirm the real owner.</p>' +
+            '<div class="flex" style="margin-top:12px">' +
+              '<a class="btn btn-success" href="report-found.html">I found this</a>' +
+              '<a class="btn btn-outline" href="messages.html">Contact owner</a>' +
+            '</div>' +
+          '</div></div>';
+      }
+
+      root.innerHTML =
+        '<div class="detail-layout">' +
+          '<div>' +
+            '<div class="detail-photo ' + (item.type === 'found' ? 'found' : '') + '" role="img" aria-label="' + App.esc(item.name) + '">' + (item.emoji || '\u{1F50D}') + '</div>' +
+            '<div class="card" style="margin-top:18px"><div class="card-body">' +
+              '<h3>Description</h3>' +
+              '<p style="color:var(--slate)">' + App.esc(item.description) + '</p>' +
+              '<div class="reveal-box" style="margin-top:14px">' +
+                '<details><summary>Why private verification matters</summary>' +
+                'Secret details (marks, scratches, contents) are stored hidden. Only the claimant\u2019s matching answers reveal whether ownership is real.' +
+                '</details>' +
+              '</div>' +
+            '</div></div>' +
+          '</div>' +
+          '<div class="detail-panel">' +
+            '<div class="card"><div class="card-body">' +
+              '<div class="flex flex-between" style="justify-content:space-between;margin-bottom:10px">' +
+                '<h3 class="mt-0">Report details</h3>' +
+                '<a class="btn btn-outline btn-sm" href="map.html?area=' + encodeURIComponent(item.area) + '">View on map</a>' +
+              '</div>' +
+              '<ul class="detail-list">' + rows + '</ul>' +
+            '</div></div>' +
+            claimHtml +
+          '</div>' +
+        '</div>' +
+
+        '<div class="section-head"><h2>Possible matches</h2>' +
+          (matches.length ? '<a href="matches.html?a=' + encodeURIComponent(item.id) + '&b=' + encodeURIComponent(matches[0].item.id) + '">Compare top match</a>' : '') +
+        '</div>' +
+        '<section class="grid" aria-label="Possible matches">' + matchHtml + '</section>';
+    })();
+  </script>
+</body>
+</html>

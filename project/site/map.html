@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Map view of lost and found item reports across the city.">
+  <title>Map view — Lost &amp; Found Citywide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="map">
+
+  <main id="main">
+    <h1 class="page-title">Map view</h1>
+    <p class="page-sub">See where lost and found reports are clustered around the city.</p>
+    <p class="text-muted mb-24" style="font-size:.85rem">Illustrative map — prototype uses static placement per area, not live GPS.</p>
+
+    <form class="filters" id="filters" aria-label="Filter map pins">
+      <div class="field">
+        <label for="f-area">Area</label>
+        <select id="f-area" name="area">
+          <option value="">All areas</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-type">Type</label>
+        <select id="f-type" name="type">
+          <option value="">All types</option>
+          <option value="lost">Lost</option>
+          <option value="found">Found</option>
+        </select>
+      </div>
+    </form>
+
+    <div class="map-mock" id="map" role="region" aria-label="Map of reports"></div>
+
+    <div class="map-legend" aria-label="Map legend">
+      <span><span aria-hidden="true" style="color:var(--red)">📍</span> Red pin = Lost</span>
+      <span><span aria-hidden="true" style="color:var(--green)">📍</span> Green pin = Found</span>
+    </div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    (function () {
+      var items = LF.getItems();
+      var mapEl = document.getElementById('map');
+      var areaSel = document.getElementById('f-area');
+      var typeSel = document.getElementById('f-type');
+
+      // Populate the area filter with the unique areas found in the reports.
+      var areas = [];
+      items.forEach(function (it) {
+        if (areas.indexOf(it.area) === -1) areas.push(it.area);
+      });
+      areas.sort();
+      areas.forEach(function (a) {
+        var opt = document.createElement('option');
+        opt.value = a;
+        opt.textContent = a;
+        areaSel.appendChild(opt);
+      });
+
+      // Honour ?area= links coming from item pages.
+      var preArea = App.param('area');
+      if (preArea && areas.indexOf(preArea) !== -1) areaSel.value = preArea;
+
+      function hash(s) {
+        var h = 0;
+        for (var i = 0; i < s.length; i++) {
+          h = (h * 31 + s.charCodeAt(i)) | 0;
+        }
+        return Math.abs(h);
+      }
+
+      function render() {
+        var area = areaSel.value;
+        var type = typeSel.value;
+
+        var shown = items.filter(function (it) {
+          if (area && it.area !== area) return false;
+          if (type && it.type !== type) return false;
+          return true;
+        });
+
+        if (!shown.length) {
+          mapEl.innerHTML = '<div class="empty" style="position:absolute;left:16px;right:16px;top:50%;transform:translateY(-50%)">' +
+            '<div class="ico" aria-hidden="true">🗺️</div>' +
+            '<p>No reports match these filters.</p></div>';
+          return;
+        }
+
+        // Keep one anchor per area, then jitter repeated areas so pins do not stack.
+        var seen = {};
+        mapEl.innerHTML = shown.map(function (it) {
+          var base = hash(it.area);
+          var idx = seen[it.area] || 0;
+          seen[it.area] = idx + 1;
+          var left = 20 + (base % 61) + (idx * 6) % 18;
+          var top = 20 + (Math.floor(base / 61) % 56) + (idx * 5) % 14;
+          if (left > 80) left -= 20;
+          if (top > 75) top -= 15;
+
+          return '<button class="pin ' + App.esc(it.type) + '" type="button" ' +
+            'style="left:' + left + '%;top:' + top + '%" ' +
+            'data-id="' + App.esc(it.id) + '" ' +
+            'aria-label="' + App.esc(it.name) + ' at ' + App.esc(it.area) + '">' +
+            '<span aria-hidden="true">📍</span>' +
+            '<span class="tip">' + App.esc(it.id) + ' · ' + App.esc(it.name) + '</span>' +
+          '</button>';
+        }).join('');
+      }
+
+      areaSel.addEventListener('change', render);
+      typeSel.addEventListener('change', render);
+
+      mapEl.addEventListener('click', function (e) {
+        var pin = e.target.closest('button.pin');
+        if (!pin) return;
+        App.go('item.html?id=' + encodeURIComponent(pin.getAttribute('data-id')));
+      });
+
+      render();
+    })();
+  </script>
+</body>
+</html>
